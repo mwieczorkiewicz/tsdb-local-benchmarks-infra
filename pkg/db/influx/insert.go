@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func NewInfluxConnection() (influxdb2.Client, error) {
+func NewInfluxConnection(batchSize uint) (influxdb2.Client, error) {
 	dbToken := os.Getenv("INFLUXDB_TOKEN")
 	if dbToken == "" {
 		return nil, errors.New("auth token must be set - set INFLUXDB_TOKEN")
@@ -22,29 +22,49 @@ func NewInfluxConnection() (influxdb2.Client, error) {
 	}
 
 	// connect and check conn health
-	client := influxdb2.NewClient(dbURL, dbToken)
+	client := influxdb2.NewClientWithOptions(dbURL, dbToken, influxdb2.DefaultOptions().SetBatchSize(batchSize))
 	_, err := client.Health(context.Background())
 
 	return client, err
 }
 
-func InsertLoadProfileDataToMeasurementSingle(c influxdb2.Client, bucket, org, measurement string, data []model.LoadProfileRecord) error {
-	writeAPI := c.WriteAPI(org, bucket)
+func InsertLoadProfileDataToMeasurementSingle(ctx context.Context, c influxdb2.Client, bucket, org, measurement string, data []model.LoadProfileRecord) error {
+	writeAPI := c.WriteAPIBlocking(org, bucket)
 	for _, v := range data {
 		f, _ := v.LoadProfile.Float64()
 		p := influxdb2.NewPoint("load-profile",
 			map[string]string{"status": v.Status},
 			map[string]interface{}{"value": f},
 			v.Ts.Ts)
-		writeAPI.WritePoint(p)
-		// Flush writes one by one
-		writeAPI.Flush()
+		err := writeAPI.WritePoint(ctx, p)
+		if err != nil {
+			return err
+		}
+		err = writeAPI.Flush(ctx)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func InsertWeatherDataToMeasurementSingle(c influxdb2.Client, bucket, org, measurement string, data []model.WeatherRecord) error {
-	writeAPI := c.WriteAPI(org, bucket)
+func InsertLoadProfileDataToMeasurementBatch(ctx context.Context, c influxdb2.Client, bucket, org, measurement string, data []model.LoadProfileRecord) error {
+	writeAPI := c.WriteAPIBlocking(org, bucket)
+	writeAPI.EnableBatching()
+	for _, v := range data {
+		f, _ := v.LoadProfile.Float64()
+		p := influxdb2.NewPoint("load-profile",
+			map[string]string{"status": v.Status},
+			map[string]interface{}{"value": f},
+			v.Ts.Ts)
+		writeAPI.WritePoint(ctx, p)
+	}
+	writeAPI.Flush(ctx)
+	return nil
+}
+
+func InsertWeatherDataToMeasurementSingle(ctx context.Context, c influxdb2.Client, bucket, org, measurement string, data []model.WeatherRecord) error {
+	writeAPI := c.WriteAPIBlocking(org, bucket)
 	for _, v := range data {
 		num, err := decimal.NewFromString(v.Value)
 		if err != nil {
@@ -57,9 +77,9 @@ func InsertWeatherDataToMeasurementSingle(c influxdb2.Client, bucket, org, measu
 				},
 				map[string]interface{}{"value": f},
 				v.Ts.Ts)
-			writeAPI.WritePoint(p)
+			writeAPI.WritePoint(ctx, p)
 		}
-		writeAPI.Flush()
+		writeAPI.Flush(ctx)
 	}
 	return nil
 }
