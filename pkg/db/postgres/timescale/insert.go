@@ -1,4 +1,4 @@
-package influx
+package timescale
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"github.com/mwieczorkiewicz/tsdb-local-benchmarks-infra/pkg/util"
 )
 
-const dbname = "influx"
+const dbName = "timescale"
 
 func InsertPointsToInfluxSingle(ctx context.Context, c influxdb2.Client, bucket, org, dataSet string, data []*write.Point) error {
-	defer util.TimeTrack(time.Now(), dataSet, dbname)
+	defer util.TimeTrack(time.Now(), dataSet, dbName)
 	writeAPI := c.WriteAPIBlocking(org, bucket)
 	for _, p := range data {
 		err := writeAPI.WritePoint(ctx, p)
@@ -28,7 +28,7 @@ func InsertPointsToInfluxSingle(ctx context.Context, c influxdb2.Client, bucket,
 }
 
 func InsertPointsToInfluxBatch(ctx context.Context, c influxdb2.Client, bucket, org, dataSet string, data []*write.Point) error {
-	defer util.TimeTrack(time.Now(), dataSet, dbname)
+	defer util.TimeTrack(time.Now(), dataSet, dbName)
 	writeAPI := c.WriteAPIBlocking(org, bucket)
 	writeAPI.EnableBatching()
 	for _, p := range data {

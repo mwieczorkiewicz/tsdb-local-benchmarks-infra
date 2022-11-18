@@ -12,7 +12,7 @@ services:
     image: influxdb:latest
     volumes:
       - ./influxclidata/temp/influxdb2:/var/lib/influxdb2:rw
-    entrypoint: influx setup --host http://192.168.0.200:8086 --org acme --bucket iot-bucket --username benchmark --password ExAmPl3PA55W0rD --force  
+    entrypoint: influx setup --host http://localhost:8086 --org acme --bucket iot-bucket --username benchmark --password ExAmPl3PA55W0rD --token SecretToken --force  
     restart: on-failure:10
     depends_on:
       - influxdb

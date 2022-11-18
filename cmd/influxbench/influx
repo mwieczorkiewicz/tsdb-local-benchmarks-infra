@@ -1,0 +1,4 @@
+InsertPointsToInfluxSingle,weather-data,1939846
+InsertPointsToInfluxBatch,weather-data,9660
+InsertPointsToInfluxSingle,load-prof-data,1932943
+InsertPointsToInfluxBatch,load-prof-data,6415
